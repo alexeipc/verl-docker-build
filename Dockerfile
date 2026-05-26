@@ -56,13 +56,10 @@ RUN pip install --no-cache-dir "vllm==0.9.1" "torch==2.7.0" "torchvision==0.22.0
 
 # Install flash-attn-2.8.0.post2
 RUN ABI_FLAG=$(python -c "import torch; print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')") && \
-    
-URL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.0.post2/flash_attn-2.8.0.post2+cu12torch2.7cxx11abi${ABI_FLAG}-cp310-cp310-linux_x86_64.whl" 
-&& \
+    URL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.0.post2/flash_attn-2.8.0.post2+cu12torch2.7cxx11abi${ABI_FLAG}-cp310-cp310-linux_x86_64.whl" && \
     wget -nv -P /opt/tiger "${URL}" && \
     pip install --no-cache-dir "/opt/tiger/$(basename ${URL})"
 
 # Reset pip config
 RUN pip config unset global.index-url && \
     pip config unset global.extra-index-url
-
