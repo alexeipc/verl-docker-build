@@ -1,65 +1,83 @@
-# Start from the NVIDIA official image (ubuntu-22.04 + cuda-12.6 + python-3.10)
-# https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-24-08.html
-FROM pytorch/pytorch:2.7.0-cuda12.6-cudnn9-devel
+# Start from NVIDIA PyTorch container
+FROM nvcr.io/nvidia/pytorch:24.08-py3
 
-# Define environments
+# Environment
 ENV MAX_JOBS=32
 ENV VLLM_WORKER_MULTIPROC_METHOD=spawn
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NODE_OPTIONS=""
 ENV PIP_ROOT_USER_ACTION=ignore
-ENV HF_HUB_ENABLE_HF_TRANSFER="1"
+ENV HF_HUB_ENABLE_HF_TRANSFER=1
 
-# Define installation arguments
-ARG APT_SOURCE=https://mirrors.tuna.tsinghua.edu.cn/ubuntu/
-ARG PIP_INDEX=https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
-
-# Set apt source
-RUN cp /etc/apt/sources.list /etc/apt/sources.list.bak && \
-    { \
-    echo "deb ${APT_SOURCE} jammy main restricted universe multiverse"; \
-    echo "deb ${APT_SOURCE} jammy-updates main restricted universe multiverse"; \
-    echo "deb ${APT_SOURCE} jammy-backports main restricted universe multiverse"; \
-    echo "deb ${APT_SOURCE} jammy-security main restricted universe multiverse"; \
-    } > /etc/apt/sources.list
-
-# Install systemctl
-RUN apt-get update && \
-    apt-get install -y -o Dpkg::Options::="--force-confdef" systemd && \
-    apt-get clean
-
-# Install tini
-RUN apt-get update && \
-    apt-get install -y tini && \
-    apt-get clean
-
-# Change pip source
-RUN pip config set global.index-url "${PIP_INDEX}" && \
-    pip config set global.extra-index-url "${PIP_INDEX}" && \
+# Use official PyPI
+RUN pip config set global.index-url https://pypi.org/simple && \
     python -m pip install --upgrade pip
 
-# Uninstall nv-pytorch fork
-RUN pip uninstall -y torch torchvision torchaudio \
-    pytorch-quantization pytorch-triton torch-tensorrt \
-    transformer-engine flash-attn apex megatron-core \
-    xgboost opencv grpcio
+# System packages
+RUN apt-get update && \
+    apt-get install -y \
+        wget \
+        git \
+        tini && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Fix cv2
-RUN rm -rf /usr/local/lib/python3.10/dist-packages/cv2
+# Remove conflicting NVIDIA packages
+RUN pip uninstall -y \
+    torch torchvision torchaudio \
+    pytorch-quantization \
+    pytorch-triton \
+    torch-tensorrt \
+    transformer-engine \
+    flash-attn \
+    apex \
+    megatron-core \
+    xgboost \
+    opencv-python \
+    grpcio || true
 
-# Install torch-2.7.0+cu126 + vllm-0.9.1
-RUN pip install --no-cache-dir "vllm==0.9.1" "torch==2.7.0" "torchvision==0.22.0" "torchaudio==2.7.0" tensordict torchdata \
-    "transformers[hf_xet]>=4.51.0" accelerate datasets peft hf-transfer \
-    "numpy<2.0.0" "pyarrow>=15.0.0" "grpcio>=1.62.1" "optree>=0.13.0" pandas \
-    ray[default] codetiming hydra-core pylatexenc qwen-vl-utils wandb liger-kernel mathruler \
-    pytest yapf py-spy pyext pre-commit ruff
+# Fix broken cv2 from base image
+RUN rm -rf /usr/local/lib/python3.10/dist-packages/cv2 || true
 
-# Install flash-attn-2.8.0.post2
+# Install PyTorch + vLLM stack
+RUN pip install --no-cache-dir \
+    "torch==2.7.0" \
+    "torchvision==0.22.0" \
+    "torchaudio==2.7.0" \
+    "vllm==0.9.1" \
+    tensordict \
+    torchdata \
+    "transformers>=4.51.0" \
+    accelerate \
+    datasets \
+    peft \
+    hf-transfer \
+    "numpy<2.0.0" \
+    "pyarrow>=15.0.0" \
+    "grpcio>=1.62.1" \
+    "optree>=0.13.0" \
+    pandas \
+    ray[default] \
+    codetiming \
+    hydra-core \
+    pylatexenc \
+    qwen-vl-utils \
+    wandb \
+    liger-kernel \
+    mathruler \
+    pytest \
+    yapf \
+    py-spy \
+    pyext \
+    pre-commit \
+    ruff
+
+# Install flash-attn
 RUN ABI_FLAG=$(python -c "import torch; print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')") && \
     URL="https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.0.post2/flash_attn-2.8.0.post2+cu12torch2.7cxx11abi${ABI_FLAG}-cp310-cp310-linux_x86_64.whl" && \
+    mkdir -p /opt/tiger && \
     wget -nv -P /opt/tiger "${URL}" && \
     pip install --no-cache-dir "/opt/tiger/$(basename ${URL})"
 
-# Reset pip config
-RUN pip config unset global.index-url && \
-    pip config unset global.extra-index-url
+# Default shell
+CMD ["/bin/bash"]
