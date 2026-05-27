@@ -47,7 +47,7 @@ RUN pip install --no-cache-dir \
     "vllm==0.9.1" \
     tensordict \
     torchdata \
-    "transformers>=4.51.0" \
+    "transformers==4.52.4" \
     accelerate \
     datasets \
     peft \
