@@ -1,6 +1,6 @@
 # Start from the NVIDIA official image (ubuntu-22.04 + cuda-12.6 + python-3.10)
 # https://docs.nvidia.com/deeplearning/frameworks/pytorch-release-notes/rel-24-08.html
-FROM nvcr.io/nvidia/pytorch:24.08-py3
+FROM pytorch/pytorch:2.7.0-cuda12.6-cudnn9-devel
 
 # Define environments
 ENV MAX_JOBS=32
